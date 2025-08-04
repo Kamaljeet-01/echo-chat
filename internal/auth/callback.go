@@ -5,6 +5,10 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/theycallmesabb/echo/internal/db"
+	"github.com/theycallmesabb/echo/internal/user"
+	"gorm.io/gorm"
+
 	"google.golang.org/api/oauth2/v1"
 )
 
@@ -25,8 +29,35 @@ func HandleGoogleCallback(c *gin.Context) {
 	}
 
 	userinfo, err := service.Userinfo.Get().Do()
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user info"})
+		return
+	}
+
+	user := &user.Chatuser{
+		Name:  userinfo.Name,
+		Email: userinfo.Email,
+	}
+	check, err := db.Checkuser(user.Email)
+	if err != nil && err != gorm.ErrRecordNotFound {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "Something went wrong" + err.Error(),
+		})
+		return
+	}
+	if check {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"Message": "User already exists",
+		})
+		return
+	}
+
+	err = db.Create(user)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"err": err,
+		})
 		return
 	}
 
@@ -36,4 +67,5 @@ func HandleGoogleCallback(c *gin.Context) {
 		"verified":  userinfo.VerifiedEmail,
 		"google_id": userinfo.Id,
 	})
+
 }
