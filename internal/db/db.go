@@ -33,6 +33,7 @@ func InitDB() {
 
 }
 
+// Inserts data used any for structs.
 func Create(ch any) error {
 
 	err := Db.Create(ch).Error
@@ -61,7 +62,7 @@ func Checkuser(email string) (bool, error) {
 		}
 		return false, fmt.Errorf("err in checking for user, err: %v", err)
 	}
-	fmt.Println("err:", err)
+	log.Println("err:", err)
 	return true, nil
 
 }
