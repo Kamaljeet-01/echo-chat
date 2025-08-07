@@ -35,11 +35,11 @@ func HandleGoogleCallback(c *gin.Context) {
 		return
 	}
 
-	user := &user.Chatuser{
+	User := &user.Chatuser{
 		Name:  userinfo.Name,
 		Email: userinfo.Email,
 	}
-	check, err := db.Checkuser(user.Email)
+	check, err := db.Checkuser(User.Email)
 	if err != nil && err != gorm.ErrRecordNotFound {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": "Something went wrong" + err.Error(),
@@ -53,7 +53,7 @@ func HandleGoogleCallback(c *gin.Context) {
 		return
 	}
 
-	err = db.Create(user)
+	err = db.Create(User)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"err": err,
@@ -62,10 +62,11 @@ func HandleGoogleCallback(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"email":     userinfo.Email,
-		"name":      userinfo.Name,
-		"verified":  userinfo.VerifiedEmail,
-		"google_id": userinfo.Id,
+		"email":       userinfo.Email,
+		"name":        userinfo.Name,
+		"verified":    userinfo.VerifiedEmail,
+		"google_id":   userinfo.Id,
+		"acces_token": token.AccessToken,
 	})
 
 }
