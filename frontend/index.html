@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Echo Chat</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Custom styles for the application */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Simple scrollbar styling */
+        #messages-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        #messages-container::-webkit-scrollbar-track {
+            background: #f1f5f9; /* slate-100 */
+        }
+        #messages-container::-webkit-scrollbar-thumb {
+            background: #94a3b8; /* slate-400 */
+            border-radius: 3px;
+        }
+        #messages-container::-webkit-scrollbar-thumb:hover {
+            background: #64748b; /* slate-500 */
+        }
+    </style>
+</head>
+<body class="bg-slate-100 flex items-center justify-center h-screen">
+
+    <!-- Container for the entire app -->
+    <div class="w-full max-w-2xl h-full sm:h-[90vh] sm:max-h-[700px] bg-white rounded-lg shadow-2xl flex flex-col">
+
+        <!-- Login View -->
+        <div id="login-view" class="flex flex-col items-center justify-center h-full p-8 text-center">
+            <h1 class="text-4xl font-bold text-slate-800 mb-2">Welcome to Echo Chat</h1>
+            <p class="text-slate-500 mb-8">Please log in to start chatting.</p>
+            <button id="login-btn" class="bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition duration-300 ease-in-out flex items-center">
+                <svg class="w-5 h-5 mr-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48px" height="48px"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"/><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"/><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C42.021,35.591,44,30.138,44,24C44,22.659,43.862,21.35,43.611,20.083z"/></svg>
+                Login with Google
+            </button>
+        </div>
+
+        <!-- Chat View -->
+        <div id="chat-view" class="hidden flex-1 flex flex-col p-4 sm:p-6">
+            <!-- Header -->
+            <div class="flex items-center justify-between pb-4 border-b border-slate-200">
+                <div class="flex items-center">
+                    <div class="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
+                    <h2 class="text-xl font-bold text-slate-800">Chat Room</h2>
+                </div>
+                <button id="logout-btn" class="text-sm font-medium text-slate-500 hover:text-red-600 transition-colors">Logout</button>
+            </div>
+
+            <!-- Messages Container -->
+            <div id="messages-container" class="flex-1 overflow-y-auto py-4 space-y-4">
+                <!-- Messages will be appended here -->
+            </div>
+
+            <!-- Message Input Form -->
+            <div class="pt-4 border-t border-slate-200">
+                <form id="message-form" class="flex items-center space-x-4">
+                    <input type="text" id="message-input" placeholder="Type your message..." autocomplete="off" class="flex-1 w-full px-4 py-3 bg-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                    <button type="submit" class="bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition duration-300 ease-in-out">Send</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIGURATION ---
+        
+        const BACKEND_ORIGIN = 'http://localhost:8080'; // Default for your Go app
+
+        // Construct the full URLs for the backend endpoints
+        const WEBSOCKET_URL = `ws://${BACKEND_ORIGIN.replace(/^https?:\/\//, '')}/ws`;
+        const LOGIN_URL = `${BACKEND_ORIGIN}/login`;
+        const LOGOUT_URL = `${BACKEND_ORIGIN}/logout`;
+
+
+        // --- DOM ELEMENTS ---
+        const loginView = document.getElementById('login-view');
+        const chatView = document.getElementById('chat-view');
+        const loginBtn = document.getElementById('login-btn');
+        const logoutBtn = document.getElementById('logout-btn');
+        const messageForm = document.getElementById('message-form');
+        const messageInput = document.getElementById('message-input');
+        const messagesContainer = document.getElementById('messages-container');
+
+        let websocket = null;
+
+        // --- HELPER FUNCTIONS ---
+
+        /**
+         * Retrieves a cookie value by its name.
+         * @param {string} name - The name of the cookie.
+         * @returns {string|null} The cookie value or null if not found.
+         */
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return null;
+        }
+
+        /**
+         * Appends a new message to the chat display.
+         * @param {string} message - The content of the message.
+         */
+        function addMessageToUI(message) {
+            const messageElement = document.createElement('div');
+            messageElement.className = 'flex items-start';
+            
+            // In a real app, you might get user info to display an avatar
+            const avatar = document.createElement('div');
+            avatar.className = 'w-10 h-10 rounded-full bg-slate-300 flex-shrink-0 mr-4';
+            
+            const messageContent = document.createElement('div');
+            messageContent.className = 'bg-slate-200 text-slate-800 p-3 rounded-lg rounded-tl-none';
+            messageContent.textContent = message;
+
+            messageElement.appendChild(avatar);
+            messageElement.appendChild(messageContent);
+            
+            messagesContainer.appendChild(messageElement);
+            // Scroll to the bottom to show the latest message
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+
+        // --- WEBSOCKET LOGIC ---
+
+        /**
+         * Establishes a WebSocket connection and sets up event handlers.
+         */
+        function connectWebSocket() {
+            console.log('Attempting to connect to WebSocket...');
+            
+            // Close any existing connection before opening a new one
+            if (websocket && websocket.readyState !== WebSocket.CLOSED) {
+                websocket.close();
+            }
+
+            websocket = new WebSocket(WEBSOCKET_URL);
+
+            websocket.onopen = (event) => {
+                console.log('WebSocket connection established.');
+                addMessageToUI('System: You are connected to the chat.');
+            };
+
+            websocket.onmessage = (event) => {
+                console.log('Message received:', event.data);
+                // The backend sends plain text, so we just display it.
+                // If it sent JSON, you would parse it here: e.g., const data = JSON.parse(event.data);
+                addMessageToUI(event.data);
+            };
+
+            websocket.onclose = (event) => {
+                console.log('WebSocket connection closed.', event);
+                addMessageToUI('System: You have been disconnected. Please refresh to reconnect.');
+                // You could implement auto-reconnect logic here if desired.
+            };
+
+            websocket.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                addMessageToUI('System: A connection error occurred.');
+            };
+        }
+
+        // --- EVENT LISTENERS ---
+
+        loginBtn.addEventListener('click', () => {
+            // Redirect to the backend's login endpoint.
+            // The backend will handle the Google OAuth flow and set the cookie.
+            window.location.href = LOGIN_URL;
+        });
+
+        logoutBtn.addEventListener('click', () => {
+            // Redirect to the backend's logout endpoint.
+            // The backend will clear the cookie and redirect back.
+            window.location.href = LOGOUT_URL;
+        });
+
+        messageForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            const message = messageInput.value.trim();
+            if (message && websocket && websocket.readyState === WebSocket.OPEN) {
+                websocket.send(message);
+                messageInput.value = ''; // Clear the input field
+            } else {
+                console.log('Cannot send message. WebSocket is not open.');
+                addMessageToUI('System: Cannot send message. You are not connected.');
+            }
+        });
+
+        // --- INITIALIZATION ---
+
+        /**
+         * Initializes the application by checking the auth state.
+         */
+        function initialize() {
+            // Your backend sets a cookie named "token" upon successful login.
+            const authToken = getCookie('token');
+
+            if (authToken) {
+                console.log('Auth token found. Displaying chat view.');
+                loginView.classList.add('hidden');
+                chatView.classList.remove('hidden');
+                connectWebSocket();
+            } else {
+                console.log('No auth token found. Displaying login view.');
+                loginView.classList.remove('hidden');
+                chatView.classList.add('hidden');
+            }
+        }
+
+        // Run the app initialization when the page is fully loaded.
+        document.addEventListener('DOMContentLoaded', initialize);
+
+    </script>
+</body>
+</html>
