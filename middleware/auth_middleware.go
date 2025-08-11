@@ -11,37 +11,51 @@ import (
 
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		var token string
 
-		//get the authorization header from request
-
+		//   First check Authorization header
 		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
-			//if header is missing black the request with 401 unauthorized
-			c.AbortWithStatusJSON(401, gin.H{
-				"error": "Authorization header is missing",
-			})
-			return
-		}
-		token := strings.TrimPrefix(authHeader, "Bearer ")
-
-		//if beared prefix is not there then its not a valid format
-
-		if token == authHeader {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-				"error ": "Bearer prefix is missing",
-			})
+		if authHeader != "" {
+			if !strings.HasPrefix(authHeader, "Bearer ") {
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+					"error": "Bearer prefix is missing",
+				})
+				return
+			}
+			token = strings.TrimPrefix(authHeader, "Bearer ")
 		}
 
+		//   If no header, check cookie
+		if token == "" {
+			cookieToken, err := c.Cookie("idtoken")
+			if err != nil {
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+					"error": "No token found in header or cookie",
+				})
+				return
+			}
+			token = cookieToken
+		}
+
+		//   Validate ID token (audience "" means skip audience check)
 		payload, err := idtoken.Validate(context.Background(), token, "")
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-				"error": "invalid token",
+				"error": "Invalid token",
 			})
 			return
 		}
-		// if valid, set the user email in context so it can be used later
 
-		c.Set("user", payload.Claims["email"])
+		//  Store user email in context also this is a type assertion
+		email, ok := payload.Claims["email"].(string)
+		if !ok {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"error": "Email not found in token",
+			})
+			return
+		}
+
+		c.Set("user", email)
 		c.Next()
 	}
 }

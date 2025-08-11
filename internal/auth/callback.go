@@ -2,11 +2,13 @@ package auth
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
+	"echo/internal/db"
+	"echo/internal/user"
+
 	"github.com/gin-gonic/gin"
-	"github.com/theycallmesabb/echo/internal/db"
-	"github.com/theycallmesabb/echo/internal/user"
 	"gorm.io/gorm"
 
 	"google.golang.org/api/oauth2/v1"
@@ -14,6 +16,7 @@ import (
 
 func HandleGoogleCallback(c *gin.Context) {
 	code := c.Query("code")
+	fmt.Println("Received code:", code)
 
 	token, err := googleOauthConfig.Exchange(context.Background(), code)
 	if err != nil {
@@ -60,13 +63,28 @@ func HandleGoogleCallback(c *gin.Context) {
 		})
 		return
 	}
+	idtoken, ok := token.Extra("id_token").(string)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "ID Token not found",
+		})
+		return
+	}
+	c.SetCookie(
+		"idtoken", // Cookie name
+		idtoken,   // Value (the token)
+		360000,    // MaxAge in seconds (100 hour)
+		"/",       // Path
+		"",        // Domain (empty = current domain
+		true,      // Secure (only sent over HTTPS)
+		true,      // HttpOnly (not accessible via JS)
+
+	)
 
 	c.JSON(http.StatusOK, gin.H{
-		"email":       userinfo.Email,
-		"name":        userinfo.Name,
-		"verified":    userinfo.VerifiedEmail,
-		"google_id":   userinfo.Id,
-		"acces_token": token.AccessToken,
-	})
+		"email": userinfo.Email,
+		"name":  userinfo.Name,
 
+		// "id_token": idtoken, // remove if you don’t want to expose it to JS
+	})
 }

@@ -5,8 +5,9 @@ import (
 	"log"
 	"os"
 
+	"echo/internal/user"
+
 	"github.com/joho/godotenv"
-	"github.com/theycallmesabb/echo/internal/user"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
